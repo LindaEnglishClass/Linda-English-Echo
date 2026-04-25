@@ -1,3 +1,12 @@
+That is a perfect UI tweak, L. Cleaning up the interface keeps the students focused on their task rather than the technical details, making the whole platform look much more polished.
+
+I have updated the dropdown menu to display only the neat, professional names: **Amanda (US English)**, **Andrew (US English)**, **Emma (UK English)**, and **Ethan (UK English)**. 
+
+Even though the text is hidden from the students, the "Band-Aid" tweaks (the 15% slower rate, the slightly deeper pitch, and the comma-to-period breath pauses) are still actively running in the background code to force the browser to simulate that deliberate broadcaster rhythm.
+
+Here is your final, clean code. You can copy this and replace your `index.html` file on GitHub:
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -40,10 +49,10 @@
         <div class="mb-6 border border-gray-200 p-4 rounded-lg bg-gray-50">
             <label class="block text-sm font-bold text-gray-700 mb-2">2. Native Reference</label>
             <select id="voiceSelect" class="w-full p-2 mb-3 border border-gray-300 rounded-lg text-sm bg-white">
-                <option value="us-female">Amanda (US English - Professional Female, CNN Anchor)</option>
-                <option value="us-male">Andrew (US English - Professional Male, CNN Anchor)</option>
-                <option value="uk-female">Emma (UK English - Professional Female, BBC Anchor)</option>
-                <option value="uk-male">Ethan (UK English - Professional Male, BBC Anchor)</option>
+                <option value="us-female">Amanda (US English)</option>
+                <option value="us-male">Andrew (US English)</option>
+                <option value="uk-female">Emma (UK English)</option>
+                <option value="uk-male">Ethan (UK English)</option>
             </select>
             <button id="listenBtn" class="w-full bg-gray-800 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-900 transition flex justify-center items-center gap-2">
                 🔊 Listen
@@ -161,10 +170,17 @@
                 return;
             }
             
-            const utterance = new SpeechSynthesisUtterance(confirmedText);
+            // The Pacing Hack: Replace commas with periods to force the browser to take a "breath"
+            let pacedText = confirmedText.replace(/,/g, '.');
+
+            const utterance = new SpeechSynthesisUtterance(pacedText);
             const selectedVoiceKey = voiceSelect.value;
             if(mappedVoices[selectedVoiceKey]) utterance.voice = mappedVoices[selectedVoiceKey];
             
+            // AI Broadcaster Tweaks
+            utterance.rate = 0.85;  // 15% slower for a deliberate, anchor-like pace
+            utterance.pitch = 0.95; // 5% deeper to remove the robotic "tinny" sound
+
             listenBtn.innerHTML = "⏹ Stop Audio";
             utterance.onend = () => { listenBtn.innerHTML = "🔊 Listen"; }
             speechSynthesis.speak(utterance);
@@ -338,3 +354,4 @@
     </script>
 </body>
 </html>
+```
