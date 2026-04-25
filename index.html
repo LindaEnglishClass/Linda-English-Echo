@@ -1,12 +1,3 @@
-That is a perfect UI tweak, L. Cleaning up the interface keeps the students focused on their task rather than the technical details, making the whole platform look much more polished.
-
-I have updated the dropdown menu to display only the neat, professional names: **Amanda (US English)**, **Andrew (US English)**, **Emma (UK English)**, and **Ethan (UK English)**. 
-
-Even though the text is hidden from the students, the "Band-Aid" tweaks (the 15% slower rate, the slightly deeper pitch, and the comma-to-period breath pauses) are still actively running in the background code to force the browser to simulate that deliberate broadcaster rhythm.
-
-Here is your final, clean code. You can copy this and replace your `index.html` file on GitHub:
-
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,7 +9,9 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         .highlight-error { color: #dc2626; text-decoration: underline; text-decoration-style: wavy; }
         .highlight-match { color: #16a34a; }
-        canvas { width: 100%; height: 60px; background-color: #f3f4f6; border-radius: 0.5rem; }
+        /* New styling for the visualizer */
+        .visualizer-track { width: 100%; height: 24px; background-color: #e5e7eb; border-radius: 9999px; overflow: hidden; }
+        .visualizer-fill { height: 100%; background-color: #22c55e; width: 0%; transition: width 0.1s ease-out; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen pb-10">
@@ -33,7 +26,7 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
         
         <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r">
             <p class="text-sm text-blue-800">
-                <strong>Assistant:</strong> Welcome! I'm Linda's teaching assistant. Let's perfect your presentation.
+                <strong>Assistant:</strong> Welcome! I'm Linda's teaching assistant. For the most natural, human-like reference audio, <strong>we highly recommend using the Microsoft Edge browser</strong>.
             </p>
         </div>
 
@@ -66,13 +59,19 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
                 🎤 Start Recording
             </button>
             
-            <div id="visualizerContainer" class="hidden mb-3">
-                <p class="text-xs text-red-500 font-bold mb-1 animate-pulse">Recording... Speak now.</p>
-                <canvas id="visualizer"></canvas>
+            <div id="visualizerContainer" class="hidden mb-4">
+                <div class="flex justify-between text-xs text-gray-500 mb-1 font-bold">
+                    <span>Mic Level</span>
+                    <span class="text-red-500 animate-pulse">🔴 Recording...</span>
+                </div>
+                <div class="visualizer-track">
+                    <div id="visualizerBar" class="visualizer-fill"></div>
+                </div>
+                <p id="liveText" class="text-xs text-gray-500 mt-2 italic text-left h-8 overflow-hidden">Waiting for speech...</p>
             </div>
             
             <p id="audioSavedMsg" class="text-green-700 text-sm font-bold mt-2 hidden">✓ Audio captured successfully.</p>
-            <p id="audioErrorMsg" class="text-red-600 text-sm font-bold mt-2 hidden">No speech detected. Please try again.</p>
+            <p id="audioErrorMsg" class="text-red-600 text-sm font-bold mt-2 hidden">No speech detected. Ensure your microphone is allowed in browser settings.</p>
         </div>
 
         <div id="submitSection" class="mb-6 hidden">
@@ -83,53 +82,40 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
 
         <div id="feedbackSection" class="hidden mt-6 border-t pt-6">
             <h2 class="text-lg font-bold mb-4 text-blue-800">Your Feedback Report</h2>
-            
-            <div id="sandwichFeedback" class="bg-blue-50 p-4 rounded-lg mb-4 text-sm text-gray-800 shadow-sm border border-blue-100">
-                </div>
-
+            <div id="sandwichFeedback" class="bg-blue-50 p-4 rounded-lg mb-4 text-sm text-gray-800 shadow-sm border border-blue-100"></div>
             <h3 class="text-sm font-bold text-gray-700 mb-2">Detailed Breakdown:</h3>
-            <div id="transcriptResult" class="p-4 border rounded-lg bg-white text-sm leading-relaxed shadow-inner">
-                </div>
+            <div id="transcriptResult" class="p-4 border rounded-lg bg-white text-sm leading-relaxed shadow-inner"></div>
             <p class="text-xs text-gray-500 mt-2">* <span class="text-red-600 font-bold">Red words</span> indicate mispronunciations or skipped words.</p>
         </div>
 
     </div>
 
     <script>
-        // DOM Elements
         const scriptInput = document.getElementById('scriptInput');
         const sendTextBtn = document.getElementById('sendTextBtn');
         const textConfirmedMsg = document.getElementById('textConfirmedMsg');
-        
         const voiceSelect = document.getElementById('voiceSelect');
         const listenBtn = document.getElementById('listenBtn');
-        
         const recordBtn = document.getElementById('recordBtn');
         const visualizerContainer = document.getElementById('visualizerContainer');
-        const canvas = document.getElementById('visualizer');
-        const canvasCtx = canvas.getContext('2d');
+        const visualizerBar = document.getElementById('visualizerBar');
+        const liveText = document.getElementById('liveText');
         const audioSavedMsg = document.getElementById('audioSavedMsg');
         const audioErrorMsg = document.getElementById('audioErrorMsg');
-        
         const submitSection = document.getElementById('submitSection');
         const sendAssessmentBtn = document.getElementById('sendAssessmentBtn');
-        
         const feedbackSection = document.getElementById('feedbackSection');
         const transcriptResult = document.getElementById('transcriptResult');
         const sandwichFeedback = document.getElementById('sandwichFeedback');
 
-        // State Variables
         let confirmedText = "";
         let finalTranscript = "";
         let sysVoices = [];
         let mappedVoices = {};
 
-        // 1. Text Confirmation Logic
+        // 1. Text Confirmation
         sendTextBtn.addEventListener('click', () => {
-            if (scriptInput.value.trim() === '') {
-                alert('Please enter your script first.');
-                return;
-            }
+            if (scriptInput.value.trim() === '') { alert('Please enter your script first.'); return; }
             confirmedText = scriptInput.value.trim();
             textConfirmedMsg.classList.remove('hidden');
             sendTextBtn.textContent = "📝 Update Script";
@@ -139,72 +125,52 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
             audioErrorMsg.classList.add('hidden');
         });
 
-        // 2. TTS Voice Setup (Smart Filter)
+        // 2. TTS Setup
         function loadVoices() {
             sysVoices = speechSynthesis.getVoices();
-            
             const findVoice = (lang, keywords) => {
                 return sysVoices.find(v => v.lang.includes(lang) && keywords.some(k => v.name.toLowerCase().includes(k))) 
                        || sysVoices.find(v => v.lang.includes(lang));
             };
-
             mappedVoices = {
-                'us-female': findVoice('en-US', ['zira', 'samantha', 'victoria', 'female']),
-                'us-male': findVoice('en-US', ['david', 'alex', 'mark', 'male']),
-                'uk-female': findVoice('en-GB', ['hazel', 'serena', 'fiona', 'female']),
-                'uk-male': findVoice('en-GB', ['george', 'daniel', 'arthur', 'male', 'ethan'])
+                'us-female': findVoice('en-US', ['zira', 'samantha', 'victoria', 'female', 'natural']),
+                'us-male': findVoice('en-US', ['david', 'alex', 'mark', 'male', 'natural']),
+                'uk-female': findVoice('en-GB', ['hazel', 'serena', 'fiona', 'female', 'natural']),
+                'uk-male': findVoice('en-GB', ['george', 'daniel', 'arthur', 'male', 'ethan', 'natural'])
             };
         }
-        
-        // Load immediately and on change for cross-browser safety
         loadVoices();
-        if (speechSynthesis.onvoiceschanged !== undefined) {
-            speechSynthesis.onvoiceschanged = loadVoices;
-        }
+        if (speechSynthesis.onvoiceschanged !== undefined) { speechSynthesis.onvoiceschanged = loadVoices; }
 
         listenBtn.addEventListener('click', () => {
             if (!confirmedText) { alert("Please Confirm Script first!"); return; }
-            if (speechSynthesis.speaking) {
-                speechSynthesis.cancel();
-                listenBtn.innerHTML = "🔊 Listen";
-                return;
-            }
+            if (speechSynthesis.speaking) { speechSynthesis.cancel(); listenBtn.innerHTML = "🔊 Listen"; return; }
             
-            // The Pacing Hack: Replace commas with periods to force the browser to take a "breath"
             let pacedText = confirmedText.replace(/,/g, '.');
-
             const utterance = new SpeechSynthesisUtterance(pacedText);
-            const selectedVoiceKey = voiceSelect.value;
-            if(mappedVoices[selectedVoiceKey]) utterance.voice = mappedVoices[selectedVoiceKey];
+            if(mappedVoices[voiceSelect.value]) utterance.voice = mappedVoices[voiceSelect.value];
             
-            // AI Broadcaster Tweaks
-            utterance.rate = 0.85;  // 15% slower for a deliberate, anchor-like pace
-            utterance.pitch = 0.95; // 5% deeper to remove the robotic "tinny" sound
+            utterance.rate = 0.85; 
+            utterance.pitch = 0.95; 
 
             listenBtn.innerHTML = "⏹ Stop Audio";
             utterance.onend = () => { listenBtn.innerHTML = "🔊 Listen"; }
             speechSynthesis.speak(utterance);
         });
 
-        // 3. Audio Visualizer Setup
+        // 3. Audio Volume Visualizer Setup
         let audioCtx;
         let analyser;
         let stream;
         let animationId;
 
         function startVisualizer(localStream) {
-            // Fix blurry canvas on high DPI screens
-            canvas.width = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
-
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioCtx.createAnalyser();
             const source = audioCtx.createMediaStreamSource(localStream);
             source.connect(analyser);
-            
             analyser.fftSize = 256;
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
             
             visualizerContainer.classList.remove('hidden');
             
@@ -212,19 +178,19 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
                 animationId = requestAnimationFrame(draw);
                 analyser.getByteFrequencyData(dataArray);
                 
-                canvasCtx.fillStyle = 'rgb(243, 244, 246)'; // Tailwind gray-50
-                canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+                // Calculate average volume
+                let sum = 0;
+                for(let i = 0; i < dataArray.length; i++) { sum += dataArray[i]; }
+                let average = sum / dataArray.length;
                 
-                const barWidth = (canvas.width / bufferLength) * 2.5;
-                let barHeight;
-                let x = 0;
+                // Scale to 100% (average usually maxes around 130)
+                let widthPercent = Math.min(100, (average / 130) * 100);
+                visualizerBar.style.width = widthPercent + '%';
                 
-                for(let i = 0; i < bufferLength; i++) {
-                    barHeight = dataArray[i] / 2;
-                    canvasCtx.fillStyle = 'rgb(34, 197, 94)'; // Tailwind Green-500
-                    canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-                    x += barWidth + 1;
-                }
+                // Change color based on volume (Green -> Yellow -> Red)
+                if(widthPercent > 80) visualizerBar.style.backgroundColor = '#ef4444'; // Red
+                else if(widthPercent > 50) visualizerBar.style.backgroundColor = '#eab308'; // Yellow
+                else visualizerBar.style.backgroundColor = '#22c55e'; // Green
             }
             draw();
         }
@@ -232,13 +198,12 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
         function stopVisualizer() {
             if(animationId) cancelAnimationFrame(animationId);
             if(stream) stream.getTracks().forEach(track => track.stop());
-            if(audioCtx && audioCtx.state !== 'closed') {
-                audioCtx.close();
-            }
+            if(audioCtx && audioCtx.state !== 'closed') audioCtx.close();
             visualizerContainer.classList.add('hidden');
+            visualizerBar.style.width = '0%';
         }
 
-        // 4. Speech Recognition Setup
+        // 4. Robust Speech Recognition Setup
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition;
         let isRecording = false;
@@ -258,6 +223,7 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
                         startVisualizer(stream);
                         
                         finalTranscript = "";
+                        liveText.innerText = "Listening...";
                         recognition.start();
                         isRecording = true;
                         
@@ -270,7 +236,7 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
                         submitSection.classList.add('hidden');
                         feedbackSection.classList.add('hidden');
                     } catch (e) {
-                        alert("Microphone error. Please allow microphone access in your browser settings.");
+                        alert("Microphone error. You must allow microphone permissions in your browser settings.");
                     }
                 } else {
                     recognition.stop();
@@ -278,20 +244,35 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
                 }
             });
 
+            // Improved processing to catch all words
             recognition.onresult = (event) => {
-                let interimTranscript = '';
+                let currentInterim = '';
+                let newFinal = '';
+
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + " ";
+                        newFinal += event.results[i][0].transcript + " ";
                     } else {
-                        interimTranscript += event.results[i][0].transcript;
+                        currentInterim += event.results[i][0].transcript;
                     }
                 }
+                
+                finalTranscript += newFinal;
+                // Show students the AI is hearing them in real-time
+                if(currentInterim) liveText.innerText = "... " + currentInterim;
+                else if (newFinal) liveText.innerText = "... " + newFinal;
             };
 
-            recognition.onerror = () => { stopRecordingUI(); };
+            recognition.onerror = (e) => { 
+                console.error(e.error);
+                if(e.error === 'no-speech' && isRecording) {
+                    // Ignore brief pauses, don't auto-stop
+                } else {
+                    stopRecordingUI(); 
+                }
+            };
         } else {
-            recordBtn.addEventListener('click', () => alert("Voice recognition is not supported on this browser. Please use Google Chrome or Apple Safari."));
+            recordBtn.addEventListener('click', () => alert("Not supported. Please use Chrome, Edge, or Safari."));
         }
 
         function stopRecordingUI() {
@@ -301,8 +282,9 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
             recordBtn.classList.replace('bg-red-600', 'bg-green-600');
             recordBtn.classList.replace('hover:bg-red-700', 'hover:bg-green-700');
             
-            // Check if any words were actually recorded
-            if(finalTranscript.trim().length > 0) {
+            // Allow submission if ANY text was gathered
+            if(finalTranscript.trim().length > 0 || liveText.innerText.length > 15) {
+                if(finalTranscript.trim().length === 0) finalTranscript = liveText.innerText.replace('...', '');
                 audioSavedMsg.classList.remove('hidden');
                 submitSection.classList.remove('hidden');
             } else {
@@ -337,21 +319,18 @@ Here is your final, clean code. You can copy this and replace your `index.html` 
             });
 
             transcriptResult.innerHTML = htmlOutput;
-
             let accuracy = 100 - ((errorCount / cleanOriginal.length) * 100);
             let feedbackHTML = "";
 
             if (accuracy > 85) {
-                feedbackHTML = `<p><strong>Excellent work!</strong> Your delivery was highly professional and clear. I highlighted a few minor words below to review, but your pacing matches the native standard beautifully.</p>`;
+                feedbackHTML = `<p><strong>Excellent work!</strong> Your delivery was highly professional and clear.</p>`;
             } else if (accuracy > 60) {
-                feedbackHTML = `<p><strong>Good effort!</strong> You are making solid progress. I noticed some words (highlighted in red) were dropped or lacked clarity. Try selecting the BBC/CNN audio, listen closely to the rhythm, and try again!</p>`;
+                feedbackHTML = `<p><strong>Good effort!</strong> You are making solid progress. Try reviewing the red highlighted words and recording again.</p>`;
             } else {
-                feedbackHTML = `<p><strong>Thank you for submitting!</strong> This script has some complex vocabulary. The system missed several words, which often means we are rushing. Break the text into smaller chunks, take a breath, and try recording again.</p>`;
+                feedbackHTML = `<p><strong>Thank you for submitting!</strong> The system missed several words. Break the text into smaller chunks, take a breath, and try again slowly.</p>`;
             }
-
             sandwichFeedback.innerHTML = feedbackHTML;
         }
     </script>
 </body>
 </html>
-```
