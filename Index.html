@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linda's English Echo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: bold; }
+        .highlight-error { color: #dc2626; text-decoration: underline; text-decoration-style: wavy; }
+        .highlight-match { color: #16a34a; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <nav class="bg-white shadow-sm p-4">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold text-blue-600">Linda's English Echo</h1>
+        </div>
+    </nav>
+
+    <div class="max-w-md mx-auto p-4 bg-white min-h-screen shadow-md">
+        
+        <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded-r">
+            <p class="text-sm text-blue-800">
+                <strong>Assistant:</strong> Welcome to Linda's English Echo! I'm Linda's teaching assistant, and I'm here to help you perfect your presentation. Paste your script below to get started.
+            </p>
+        </div>
+
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">1. Paste Your Script (Max 2 mins speaking)</label>
+            <textarea id="scriptInput" rows="5" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Hello everyone, today I want to talk about..."></textarea>
+        </div>
+
+        <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <label class="block text-sm font-medium text-gray-700 mb-2">2. Listen to Native Speaker</label>
+            <select id="voiceSelect" class="w-full p-2 mb-3 border border-gray-300 rounded-lg">
+                <option value="">Loading voices...</option>
+            </select>
+            <button id="listenBtn" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
+                🔊 Listen to Native Audio
+            </button>
+        </div>
+
+        <div class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200 text-center">
+            <label class="block text-sm font-medium text-gray-700 mb-2">3. Your Turn</label>
+            <p class="text-xs text-gray-500 mb-3">Allow microphone access when prompted.</p>
+            <button id="recordBtn" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2">
+                🎤 Start Recording
+            </button>
+            <p id="recordingStatus" class="text-red-500 text-sm font-bold mt-2 hidden">Recording... Read your script aloud.</p>
+        </div>
+
+        <div id="feedbackSection" class="hidden mt-6 border-t pt-6">
+            <h2 class="text-lg font-bold mb-4">Your Feedback</h2>
+            
+            <div id="sandwichFeedback" class="bg-blue-50 p-4 rounded-lg mb-4 text-sm text-gray-800">
+                </div>
+
+            <h3 class="text-sm font-bold text-gray-700 mb-2">Pronunciation Check:</h3>
+            <div id="transcriptResult" class="p-4 border rounded-lg bg-gray-50 text-sm leading-relaxed">
+                </div>
+            <p class="text-xs text-gray-500 mt-2">* Red words indicate areas to practice. Green words were heard clearly.</p>
+        </div>
+
+    </div>
+
+    <script>
+        // DOM Elements
+        const scriptInput = document.getElementById('scriptInput');
+        const voiceSelect = document.getElementById('voiceSelect');
+        const listenBtn = document.getElementById('listenBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const feedbackSection = document.getElementById('feedbackSection');
+        const transcriptResult = document.getElementById('transcriptResult');
+        const sandwichFeedback = document.getElementById('sandwichFeedback');
+
+        // Text-to-Speech (TTS) Setup
+        let voices = [];
+        function populateVoiceList() {
+            voices = speechSynthesis.getVoices();
+            voiceSelect.innerHTML = '';
+            // Filter for English voices to keep the list clean
+            const engVoices = voices.filter(voice => voice.lang.includes('en'));
+            engVoices.forEach((voice, i) => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.value = i;
+                voiceSelect.appendChild(option);
+            });
+        }
+        populateVoiceList();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+
+        listenBtn.addEventListener('click', () => {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                listenBtn.textContent = "🔊 Listen to Native Audio";
+                return;
+            }
+            const text = scriptInput.value;
+            if (text !== '') {
+                const utterance = new SpeechSynthesisUtterance(text);
+                const selectedVoice = voices.filter(voice => voice.lang.includes('en'))[voiceSelect.value];
+                if(selectedVoice) utterance.voice = selectedVoice;
+                
+                listenBtn.textContent = "⏹ Stop Audio";
+                utterance.onend = () => { listenBtn.textContent = "🔊 Listen to Native Audio"; }
+                speechSynthesis.speak(utterance);
+            } else {
+                alert('Please paste a script first!');
+            }
+        });
+
+        // Speech-to-Text (STT) Setup
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+            alert("Your browser does not support Speech Recognition. Please try Google Chrome.");
+        } else {
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false; // Set to false for better mobile stability
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            let isRecording = false;
+
+            recordBtn.addEventListener('click', () => {
+                if (!scriptInput.value) {
+                    alert('Please paste your script before recording.');
+                    return;
+                }
+
+                if (!isRecording) {
+                    try {
+                        recognition.start();
+                        isRecording = true;
+                        recordBtn.textContent = "⏹ Stop Recording";
+                        recordBtn.classList.replace('bg-green-600', 'bg-red-600');
+                        recordBtn.classList.replace('hover:bg-green-700', 'hover:bg-red-700');
+                        recordingStatus.classList.remove('hidden');
+                        feedbackSection.classList.add('hidden');
+                    } catch (e) {
+                        console.error("Microphone error:", e);
+                        alert("Could not start microphone. Please ensure permissions are granted in your browser settings.");
+                    }
+                } else {
+                    recognition.stop();
+                }
+            });
+
+            recognition.onresult = (event) => {
+                const spokenText = event.results[0][0].transcript;
+                analyzeSpeech(scriptInput.value, spokenText);
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error", event.error);
+                alert("Audio error: " + event.error + ". Please try again in a quiet environment.");
+                stopRecordingUI();
+            };
+
+            recognition.onend = () => {
+                stopRecordingUI();
+            };
+
+            function stopRecordingUI() {
+                isRecording = false;
+                recordBtn.textContent = "🎤 Start Recording";
+                recordBtn.classList.replace('bg-red-600', 'bg-green-600');
+                recordBtn.classList.replace('hover:bg-red-700', 'hover:bg-green-700');
+                recordingStatus.classList.add('hidden');
+            }
+        }
+
+        // Analysis and Sandwich Feedback Logic
+        function analyzeSpeech(originalText, spokenText) {
+            feedbackSection.classList.remove('hidden');
+            
+            // Clean strings for comparison
+            const cleanOriginal = originalText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").split(/\s+/);
+            const cleanSpoken = spokenText.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").split(/\s+/);
+            
+            let htmlOutput = "";
+            let errorCount = 0;
+
+            // Simple diffing algorithm for browser
+            cleanOriginal.forEach(word => {
+                if (cleanSpoken.includes(word)) {
+                    htmlOutput += `<span class="highlight-match">${word}</span> `;
+                } else {
+                    htmlOutput += `<span class="highlight-error">${word}</span> `;
+                    errorCount++;
+                }
+            });
+
+            transcriptResult.innerHTML = htmlOutput;
+
+            // Generate Sandwich Feedback
+            let accuracy = 100 - ((errorCount / cleanOriginal.length) * 100);
+            let feedbackHTML = "";
+
+            if (accuracy > 85) {
+                feedbackHTML = `<p><strong>Great job!</strong> Your pacing and pronunciation are very close to the native standard. I highlighted a few minor words below to practice, but your overall delivery is strong and confident. Keep up the excellent work!</p>`;
+            } else if (accuracy > 60) {
+                feedbackHTML = `<p><strong>Good effort!</strong> You are making solid progress. I noticed some words (highlighted in red) were a bit unclear to the system. Try listening to the native audio one more time, focusing on mouth placement and stressing the syllables correctly. You've got this, try again!</p>`;
+            } else {
+                feedbackHTML = `<p><strong>Thank you for practicing!</strong> This is a challenging script, so don't worry. The system missed a few words, which usually means we need to slow down our rhythm. Break the script into smaller sentences, listen to the audio, and try again slowly. I'm here to help you get it right!</p>`;
+            }
+
+            sandwichFeedback.innerHTML = feedbackHTML;
+        }
+    </script>
+</body>
+</html>
